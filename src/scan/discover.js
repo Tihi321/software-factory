@@ -8,6 +8,17 @@ export function toPosix(p) {
   return s;
 }
 
+/** Glob to case-insensitive RegExp over forward-slash paths: * is one segment, ** is anything. */
+export function globToRegExp(glob) {
+  const esc = (s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+  const body = toPosix(glob).split('**').map((part) => part.split('*').map(esc).join('[^/]*')).join('.*');
+  return new RegExp(`^${body}$`, 'i');
+}
+
+function rootName(root) {
+  return root.split('/').filter(Boolean).pop() || root;
+}
+
 export function expandHome(p) {
   if (p === '~' || p.startsWith('~/') || p.startsWith('~\\')) return toPosix(homedir()) + p.slice(1).replaceAll('\\', '/');
   return toPosix(p);
@@ -32,8 +43,11 @@ async function isRepo(dir) {
  * node_modules, dot-dirs (so .git, .claude/worktrees) are skipped. Roots themselves are not repos.
  * Returns [{ repo (path relative to its root), path, root }] sorted by repo.
  */
-export async function discoverRepos(roots, maxDepth) {
+export async function discoverRepos(roots, maxDepth, exclude = []) {
   const found = [];
+  const excluders = exclude.map(globToRegExp);
+  const prefixKeys = roots.length > 1;
+  const isExcluded = (rel, abs) => excluders.some((re) => re.test(rel) || re.test(abs));
   async function walk(dir, root, depth) {
     let entries;
     try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
@@ -41,7 +55,9 @@ export async function discoverRepos(roots, maxDepth) {
     await Promise.all(subs.map(async (e) => {
       const p = `${dir}/${e.name}`;
       if (await isRepo(p)) {
-        found.push({ repo: p.slice(root.length + 1), path: p, root });
+        const rel = p.slice(root.length + 1);
+        if (isExcluded(rel, p)) return;
+        found.push({ repo: prefixKeys ? `${rootName(root)}/${rel}` : rel, path: p, root });
       } else if (depth + 1 < maxDepth) {
         await walk(p, root, depth + 1);
       }

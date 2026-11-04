@@ -137,9 +137,11 @@ Sessions: newest `sessionsPerRepo` per repo by file mtime; only `cwd`, `gitBranc
 
 `GET /api/index` returns one JSON object. All paths are absolute with forward slashes; times are
 ISO 8601 strings or `null`; `repo` is the path relative to its root (for example
-`Personal/creative-hub`); unknown values are `null`, never omitted.
+`Personal/creative-hub`; with more than one root it is prefixed with the root's last folder name, with one root it is not); unknown values are `null`, never omitted.
 
-- `version` (1), `generatedAt`, `scanMs`, `roots`
+- `version` (1), `generatedAt`, `scanMs`, `roots` (existing roots actually scanned)
+- `settings`: `{ roots[], exclude[], sources: { roots, exclude } }`; `roots` are the configured folders (expanded,
+  forward slashes), `sources` each one of `cli`, `env`, `config.local.json`, `config.json`
 - `repos[]`: `repo, path, ticketCount, requestCount, sessionCount, lastActivity`
 - `requests[]`: `key` (`<repo>#REQ-0004`), `repo, id, title, status, path, created, updated, file,
   links[], pieces[]` (`n, piece, role, tier, effort, agent, status`), `logTail[]` (`ts, text`; last

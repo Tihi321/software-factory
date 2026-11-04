@@ -96,6 +96,28 @@ test('sessions and privacy: title and repo matched, no message bodies in the ind
   assert.equal(index.repos.find((r) => r.repo === 'Grp/new-style').sessionCount, 1);
 });
 
+test('config precedence (env over local over base) and exclude patterns', async () => {
+  const dir = await mkdtemp(`${tmpdir()}/sf-cfg-`);
+  try {
+    await writeFile(`${dir}/config.json`, JSON.stringify({ roots: ['/base'], sessionsDir: tmp }));
+    const load = (env, opts) => loadConfig(`${dir}/config.json`, { env, ...opts });
+    assert.deepEqual([(await load({})).roots, (await load({})).sources.roots], [['/base'], 'config.json']);
+    await writeFile(`${dir}/config.local.json`, JSON.stringify({ roots: [`${FIX}/projects`], exclude: ['grp/FACT'] }));
+    const local = await load({});
+    assert.deepEqual([local.roots, local.sources], [[`${FIX}/projects`], { roots: 'config.local.json', exclude: 'config.local.json' }]);
+    const env = await load({ DASHBOARD_ROOTS: `/e1;${FIX}/projects` });
+    assert.deepEqual([env.roots.length, env.sources.roots, env.sources.exclude], [2, 'env', 'config.local.json']);
+    assert.equal((await load({ DASHBOARD_ROOTS: '/e1' }, { roots: ['/cli'] })).sources.roots, 'cli');
+
+    const ix = await scanAll(local, { now: NOW });
+    assert.deepEqual(ix.repos.map((r) => r.repo), ['Grp/new-style', 'Grp/old-style'], 'excluded repo is not scanned');
+    assert.deepEqual(ix.settings.exclude, ['grp/FACT']);
+    const multi = await scanAll({ ...local, roots: [`${FIX}/projects`, '/no/such/root'], exclude: ['Grp/*-style'] }, { now: NOW });
+    assert.deepEqual(multi.repos.map((r) => r.repo), ['Grp/fact'], 'single existing root keeps unprefixed keys');
+    assert.ok(multi.errors.some((e) => e.file === '/no/such/root'));
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
 test('index shape: three repos discovered and every C3 key present, unknowns are null', () => {
   assert.deepEqual(index.repos.map((r) => r.repo), ['Grp/fact', 'Grp/new-style', 'Grp/old-style']);
   assert.equal(index.version, 1);

@@ -1,6 +1,6 @@
 'use strict';
 // Read-only view. All data is rendered with textContent / createElement; never innerHTML.
-const TABS = [['needs', 'Needs you'], ['requests', 'Requests'], ['tickets', 'Tickets'], ['stale', 'Stale'], ['sessions', 'Sessions']];
+const TABS = [['needs', 'Needs you'], ['requests', 'Requests'], ['tickets', 'Tickets'], ['stale', 'Stale'], ['sessions', 'Sessions'], ['settings', 'Settings']];
 const state = { tab: 'needs', repo: '', q: '', index: null, error: null };
 
 const $ = (id) => document.getElementById(id);
@@ -125,7 +125,25 @@ function renderSessions(out, ix) {
   }
 }
 
+function renderSettings(out, ix) {
+  const s = ix.settings;
+  const list = (title, items, src) => {
+    const c = card(title, 'source: ' + src);
+    if (!items.length) c.appendChild(el('div', 'sub', '(none)'));
+    items.forEach((v) => row(c, pathBtn(v)));
+    out.appendChild(c);
+  };
+  list('Scanned roots', s.roots, s.sources.roots);
+  list('Excluded patterns', s.exclude, s.sources.exclude);
+  const how = card('How to change this', 'Read-only here. Changes apply on the next refresh; host and port need a restart.');
+  how.appendChild(el('div', 'sub', '1. Edit config.local.json in the repo root (keys roots and exclude).'));
+  how.appendChild(el('div', 'sub', '2. Or set the DASHBOARD_ROOTS environment variable, folders separated by ;'));
+  how.appendChild(el('div', 'sub', '3. Or start with --roots "<a>;<b>". Precedence: --roots, DASHBOARD_ROOTS, config.local.json, config.json.'));
+  out.appendChild(how);
+}
+
 const RENDERERS = {
+  settings: renderSettings,
   needs: renderInbox,
   requests: (o, i) => renderRequests(o, i, false),
   tickets: (o, i) => renderTickets(o, i, false),
@@ -138,6 +156,7 @@ function count(ix, id) {
   if (id === 'requests') return ix.requests.length;
   if (id === 'tickets') return ix.tickets.length;
   if (id === 'stale') return ix.requests.filter((r) => r.stale).length + ix.tickets.filter((t) => t.stale).length;
+  if (id === 'settings') return ix.settings.roots.length;
   return ix.sessions.length;
 }
 function renderTabs(ix) {

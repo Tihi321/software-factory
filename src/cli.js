@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import * as fsp from 'node:fs/promises';
-import { loadConfig, scanAll, sweepReport } from './scan/index.js';
+import { loadConfig, parseRoots, scanAll, sweepReport } from './scan/index.js';
 
 const [cmd, ...args] = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -8,10 +8,10 @@ const value = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i +
 
 async function main() {
   if (cmd !== 'scan' && cmd !== 'sweep') {
-    console.error('usage: node src/cli.js scan [--out <path>] [--stats] [--config <path>]\n       node src/cli.js sweep [--config <path>]');
+    console.error('usage: node src/cli.js scan [--out <path>] [--stats] [--config <path>] [--roots "<a>;<b>"]\n       node src/cli.js sweep [--config <path>]');
     process.exit(2);
   }
-  const config = await loadConfig(value('--config'));
+  const config = await loadConfig(value('--config'), { roots: parseRoots(value('--roots')) });
   const index = await scanAll(config);
   if (cmd === 'sweep') { process.stdout.write(sweepReport(index)); return; }
   if (flag('--stats')) {

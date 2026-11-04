@@ -73,8 +73,12 @@ export async function start(config, scanFn) {
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
-  const { loadConfig, scanAll } = await import('./scan/index.js');
-  const config = await loadConfig();
-  const server = await start(config, (c) => scanAll(c));
+  const { loadConfig, parseRoots, scanAll } = await import('./scan/index.js');
+  const args = process.argv.slice(2);
+  const i = args.indexOf('--roots');
+  const roots = i >= 0 ? parseRoots(args[i + 1]) : undefined;
+  const config = await loadConfig(undefined, { roots });
+  // Re-read config on every rescan so config.local.json edits apply without a restart (host/port still need one).
+  const server = await start(config, async () => scanAll(await loadConfig(undefined, { roots })));
   console.log(`Dashboard: http://${config.host}:${server.address().port}/ (read-only)`);
 }

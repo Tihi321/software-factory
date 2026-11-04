@@ -2,3 +2,4 @@
 /.claude/temp/
 node_modules/
 /.claude/tickets/
+/config.local.json

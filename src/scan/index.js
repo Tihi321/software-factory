@@ -2,7 +2,7 @@
 import { readFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
-import { discoverRepos, expandHome, toPosix } from './discover.js';
+import { discoverRepos, expandHome, statOrNull, toPosix } from './discover.js';
 import { scanRequests } from './requests.js';
 import { scanTickets } from './tickets.js';
 import { scanFactory } from './factory.js';
@@ -15,11 +15,30 @@ export { sweepReport } from './stale.js';
 const DEFAULTS = { roots: ['C:/projects'], maxDepth: 3, sessionsDir: '~/.claude/projects', sessionsPerRepo: 5,
   staleDays: 3, abandonDays: 14, host: '127.0.0.1', port: 4317, cacheSeconds: 15 };
 
-export async function loadConfig(path) {
+const splitList = (s) => String(s).split(';').map((x) => x.trim()).filter(Boolean);
+
+/**
+ * Precedence for roots (highest first): options.roots (CLI) > env DASHBOARD_ROOTS > config.local.json > config.json.
+ * config.local.json (next to the base config, optional) is shallow-merged over it. exclude: local over base.
+ * Each call re-reads the files, so edits apply on the next rescan.
+ */
+export async function loadConfig(path, { roots: cliRoots, env = process.env, localPath } = {}) {
   const file = path ?? fileURLToPath(new URL('../../config.json', import.meta.url));
-  const user = JSON.parse(await readFile(file, 'utf8'));
-  return { ...DEFAULTS, ...user };
+  const base = JSON.parse(await readFile(file, 'utf8'));
+  let local = {};
+  try { local = JSON.parse(await readFile(localPath ?? file.replace(/config.json$/, 'config.local.json'), 'utf8')); }
+  catch (e) { if (e.code !== 'ENOENT') throw e; }
+  const merged = { ...DEFAULTS, exclude: [], ...base, ...local };
+  const sources = { roots: 'config.json', exclude: 'config.json' };
+  for (const k of ['roots', 'exclude']) if (k in local) sources[k] = 'config.local.json';
+  const envRoots = env.DASHBOARD_ROOTS ? splitList(env.DASHBOARD_ROOTS) : [];
+  if (cliRoots?.length) { merged.roots = cliRoots; sources.roots = 'cli'; }
+  else if (envRoots.length) { merged.roots = envRoots; sources.roots = 'env'; }
+  return { ...merged, sources };
 }
+
+/** Parse a "--roots a;b" value. */
+export const parseRoots = (s) => (s ? splitList(s) : undefined);
 
 const TICKET_LINK = /(?:^|\/)\.(claude|codex)\/tickets\/([^/]+)/;
 
@@ -56,8 +75,14 @@ function resolveFrontRequest(value, ticketRepo, repos) {
 export async function scanAll(config, { now = new Date() } = {}) {
   const t0 = performance.now();
   const errors = [];
-  const roots = config.roots.map((r) => expandHome(r));
-  const repos = await discoverRepos(roots, config.maxDepth);
+  const exclude = (config.exclude ?? []).map((p) => toPosix(p));
+  const configured = config.roots.map((r) => expandHome(r));
+  const roots = [];
+  for (const r of configured) {
+    if (await statOrNull(r)) roots.push(r);
+    else errors.push({ file: r, message: 'root folder not found' });
+  }
+  const repos = await discoverRepos(roots, config.maxDepth, exclude);
 
   const perRepo = await Promise.all(repos.map(async (repo) => {
     const [rq, tk, fc] = await Promise.all([scanRequests(repo), scanTickets(repo), scanFactory(repo)]);
@@ -135,6 +160,7 @@ export async function scanAll(config, { now = new Date() } = {}) {
 
   return {
     version: 1, generatedAt: now.toISOString(), scanMs: Math.round(performance.now() - t0), roots,
+    settings: { roots: configured, exclude, sources: config.sources ?? { roots: 'config.json', exclude: 'config.json' } },
     repos: repoRows, requests, tickets, factory, sessions: sess.sessions, inbox, errors,
   };
 }
