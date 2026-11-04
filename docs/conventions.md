@@ -20,8 +20,14 @@ First lines of `plan.md`, fenced by `---`, flat keys only (scalars and `[a, b]` 
 | `branch` | `<name>` or `none` |
 | `updated` | `YYYY-MM-DD` |
 
-Writers: the planner (`draft`), director-scribe (`approved` on the user's yes), implement
-(`in-progress` plus `branch` at branch cut, `blocked`, `done` at changelog).
+Every write to the front matter block sets `updated` to today's local date. Write the front
+matter first, then append the matching event.
+
+Writers: the planner (`draft`), director-scribe (`approved` on the user's yes; `done` after a PASS
+checker verdict (or on the user's word after a 2nd re-check FAIL); `dropped` on the user's word), implement (`in-progress` plus `branch` at branch
+cut, `blocked`; `done` at changelog only when `request` is `none`). A `request` that is a REQ id marks
+the ticket director-managed: implement stays `in-progress` after `changelog.written`, appends no
+`ticket.done`, and the director closes it.
 
 Example:
 
@@ -43,13 +49,13 @@ One `## A-<nnn> <what, one line>` heading per item, then `- key: value` lines.
 | Key | Meaning |
 |---|---|
 | `status` | `open`, `answered`, `withdrawn` |
-| `asked` | `YYYY-MM-DD HH:MM` |
-| `by` | the actor that asks |
+| `asked` | `YYYY-MM-DD HH:MM` (local time) |
+| `by` | the actor that asks (not necessarily the one that writes the item) |
 | `why` | why the user is needed |
 | `options` | nested `  - ` lines, one per option |
 | `recommendation` | what the asker suggests |
 | `default` | what happens with no answer |
-| `answer` | empty until answered; then the user's words and date |
+| `answer` | empty until answered; then the user's words and date (local time) |
 
 Items are never deleted; answering sets `status: answered`. Writers: director-scribe, implement
 orchestrator.
@@ -72,23 +78,54 @@ Example:
 
 ## 3. events.jsonl
 
-Append-only, one JSON object per line, UTF-8. Never rewrite earlier lines; append with one line
-per write.
+Append-only, one JSON object per line, UTF-8. Each event is one line; several lines may be
+appended in one write when they happened together; never rewrite or reorder earlier lines.
 
-Required fields: `ts` (UTC ISO), `actor` (skill or agent name, or `user`), `type`, `ticket`,
-`detail`. `request` may be `null`. `data` is an optional object.
+Required fields: `ts`, `actor`, `type`, `ticket`, `detail`. `request` may be `null`. `data` is an
+optional object.
 
-Types: `plan.created`, `plan.approved`, `implement.started`, `slice.started`, `slice.done`,
-`slice.failed`, `verify.passed`, `verify.failed`, `attention.opened`, `attention.answered`,
-`checker.verdict`, `changelog.written`, `ticket.done`, `ticket.dropped`, `note`. Unknown types
-are kept and shown.
+- `ts` is when the event happened (UTC ISO). Append each event when it happens, not in a batch at
+  the end. A writer without a clock uses the time its brief gives.
+- `actor`: `planner`, `director`, `director-scribe`, `implement`, `implementer`, `director-checker` or
+  `user`.
+- `detail`: one line, at most ~80 characters; counts and lists go in `data`.
+- A slice is one child launch; list the plan tasks it covers in `data.tasks`, e.g.
+  `["T1","T2"]`.
+- Date-times in `attention.md` (`asked`, `answer`) are local time; event `ts` is UTC.
 
-One writer per ticket at a time: the orchestrator, or the scribe for director events.
+Types and their writer (unknown types are kept and shown):
+
+| type | writer | when |
+|---|---|---|
+| `plan.created` | director-scribe | after the planner returns the plan |
+| `plan.approved` | director-scribe | on the user's yes |
+| `implement.started` | implement | at branch cut |
+| `slice.started` | implement | when a child is launched |
+| `slice.done` | implement | when the child reports success |
+| `slice.failed` | implement | when the child reports failure |
+| `verify.passed` | implement | when verification finishes and passes |
+| `verify.failed` | implement | when verification finishes and fails |
+| `attention.opened` | the writer of the item: implement for its own, else director-scribe | when the item is added |
+| `attention.answered` | whoever relays the answer (director-scribe under a director, implement standalone) | when the answer is recorded |
+| `checker.verdict` | director-scribe | after director-checker returns |
+| `changelog.written` | implement | when `changelog.md` is written |
+| `ticket.done` | director-scribe under a director; implement standalone | on done (see `status` writers) |
+| `ticket.dropped` | director-scribe | on the user's word |
+| `note` | the current owner | any time |
+
+Handover: the scribe writes until `plan.approved`; implement owns the ticket from
+`implement.started` until `changelog.written` or `blocked`; then the scribe again. On resume
+after `blocked`, the scribe records the answer (`attention.answered`), then implement sets
+`in-progress` and owns the ticket until `changelog.written`. Exactly one writer per ticket at a
+time: while implement owns the ticket the scribe writes none of its state files; a director
+attention item or a drop in that window waits until implement hands back (or the director stops
+implement first). `blocked` is written by implement: front matter `status: blocked` first, then
+`attention.opened`.
 
 Example (one line):
 
 ```json
-{"ts":"2026-11-04T14:02:11Z","actor":"implement","type":"slice.done","request":"REQ-0007","ticket":"HUB-09-x","detail":"short text"}
+{"ts":"2026-11-04T14:02:11Z","actor":"implement","type":"slice.done","request":"REQ-0007","ticket":"HUB-09-x","detail":"scan slice done","data":{"tasks":["T1","T2"]}}
 ```
 
 ## 4. discoveries.md
@@ -96,7 +133,7 @@ Example (one line):
 Out-of-scope defects or oddities found while working. Not ideas; ideas stay under `Extra ideas`.
 One line per finding:
 
-`- YYYY-MM-DD <actor>: <finding> (<path:line>) - suggested: <action>`
+`- YYYY-MM-DD <actor>: <finding> (<path>[:line]) - suggested: <action>` (one parenthesised group only)
 
 Never acted on without the user. The dashboard shows the count. Writers: the implement
 orchestrator for work run through `implement`; director-scribe only for workers the director runs
@@ -139,6 +176,7 @@ Sessions: newest `sessionsPerRepo` per repo by file mtime; only `cwd`, `gitBranc
 ISO 8601 strings or `null`; `repo` is the path relative to its root (for example
 `Personal/creative-hub`; with more than one root it is prefixed with the root's last folder name, with one root it is not); unknown values are `null`, never omitted.
 
+- `Event` = `{ts, actor, type, request, ticket, detail, data}`; unknown strings and absent `data` are `null`
 - `version` (1), `generatedAt`, `scanMs`, `roots` (existing roots actually scanned)
 - `settings`: `{ roots[], exclude[], sources: { roots, exclude } }`; `roots` are the configured folders (expanded,
   forward slashes), `sources` each one of `cli`, `env`, `config.local.json`, `config.json`
@@ -152,7 +190,7 @@ ISO 8601 strings or `null`; `repo` is the path relative to its root (for example
   (`front-matter`, `status-line`, `changelog`, `checkboxes`, `none`), `statusRaw`,
   `checkbox` (`done, open`), `files` (booleans: `plan, changelog, handoff, research, attention,
   events, discoveries`), `request`, `attention[]` (`id, what, status, asked, by, why, options[],
-  recommendation, default, answer, open`), `events` (`count, badLines, last, recent[]`; `recent` = last 10 valid events, newest first), `discoveries`
+  recommendation, default, answer, open`), `events` (`count, badLines, last, recent[]`; `last` and `recent` items are `Event`; `recent` = last 10 valid events, newest first), `discoveries`
   (count), `lastActivity, stale, staleReason`
 - `factory[]`: `repo, file, jobs[]` (`id, title, branch, stage, round, decision, note, updated`)
 - `sessions[]`: `id, repo, cwd, title, branch, lastActivity, sizeBytes`

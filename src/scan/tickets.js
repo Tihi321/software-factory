@@ -64,7 +64,7 @@ export function parseEvents(text) {
     if (!o || typeof o !== 'object' || Array.isArray(o)) { badLines++; continue; }
     count++;
     last = { ts: str(o.ts), actor: str(o.actor), type: str(o.type), request: str(o.request),
-      ticket: str(o.ticket), detail: str(o.detail), ...(o.data && typeof o.data === 'object' ? { data: o.data } : {}) };
+      ticket: str(o.ticket), detail: str(o.detail), data: o.data && typeof o.data === 'object' && !Array.isArray(o.data) ? o.data : null };
     recent.push(last);
     if (recent.length > 10) recent.shift();
   }
