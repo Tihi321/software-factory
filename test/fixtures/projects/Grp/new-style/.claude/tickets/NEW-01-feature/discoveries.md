@@ -1,0 +1,2 @@
+- 2026-11-02 implement: README mentions a removed flag (README.md:12) - suggested: fix the text
+- 2026-11-02 implement: dead helper (src/util.js:40) - suggested: delete it

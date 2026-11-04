@@ -1,0 +1,16 @@
+{
+  "name": "software-factory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only local dashboard for workflow state across C:/projects",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "scan": "node src/cli.js scan",
+    "sweep": "node src/cli.js sweep",
+    "test": "node --test"
+  }
+}

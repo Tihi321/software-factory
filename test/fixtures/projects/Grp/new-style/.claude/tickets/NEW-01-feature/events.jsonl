@@ -1,0 +1,3 @@
+{"ts":"2026-11-02T09:00:00Z","actor":"implement","type":"implement.started","request":"REQ-0001","ticket":"NEW-01-feature","detail":"started"}
+{"ts":"2026-11-02T09:30:00Z","actor":"implement","type":"attention.opened","request":"REQ-0001","ticket":"NEW-01-feature","detail":"A-001"}
+{this line is not json

@@ -1,0 +1,5 @@
+{ "jobs": [
+  { "id": "001-a", "title": "Needs a human", "branch": "factory/001-a", "stage": "needs-human", "round": 2,
+    "decision": "ESCALATE", "note": "two rounds used", "updated": "2026-11-01T10:00:00Z" },
+  { "id": "002-b", "title": "Merged job", "branch": "factory/002-b", "stage": "merged", "round": 1,
+    "decision": "APPROVE", "note": "", "updated": "2026-10-30T10:00:00Z" } ] }
