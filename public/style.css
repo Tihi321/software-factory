@@ -36,6 +36,9 @@ main { padding: 0 12px 24px; display: grid; gap: 8px; }
 .bar { height: 6px; width: 90px; background: var(--line); border-radius: 3px; overflow: hidden; }
 .bar > span { display: block; height: 100%; background: var(--green); }
 .path { font: 12px ui-monospace, Consolas, monospace; background: none; border: 1px dashed var(--line); border-radius: 4px; padding: 1px 5px; color: var(--muted); cursor: copy; text-align: left; max-width: 100%; overflow-wrap: anywhere; }
+.timeline { margin-top: 6px; }
+.timeline summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.timeline .sub { white-space: pre-wrap; overflow-wrap: anywhere; }
 .empty { color: var(--muted); padding: 16px 0; }
 h2 { font-size: 14px; margin: 10px 0 0; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 @media (max-width: 400px) { body { font-size: 14px; } .bar { width: 60px; } }

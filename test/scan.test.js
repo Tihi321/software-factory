@@ -52,6 +52,7 @@ test('tickets: front matter wins; old plans derive status; .codex tickets includ
   assert.equal(n.discoveries, 2);
   assert.deepEqual(n.checkbox, { done: 1, open: 1 });
   assert.equal(n.events.last.type, 'attention.opened');
+  assert.deepEqual(n.events.recent.map((e) => e.type), ['attention.opened', 'implement.started']);
 
   const line = tic('Grp/old-style#OLD-01-status-line');
   assert.deepEqual([line.status, line.statusSource], ['done', 'status-line']);

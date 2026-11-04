@@ -56,6 +56,7 @@ export function parseEvents(text) {
   let count = 0;
   let badLines = 0;
   let last = null;
+  const recent = [];
   for (const line of text.split('\n')) {
     if (line.trim() === '') continue;
     let o;
@@ -64,8 +65,10 @@ export function parseEvents(text) {
     count++;
     last = { ts: str(o.ts), actor: str(o.actor), type: str(o.type), request: str(o.request),
       ticket: str(o.ticket), detail: str(o.detail), ...(o.data && typeof o.data === 'object' ? { data: o.data } : {}) };
+    recent.push(last);
+    if (recent.length > 10) recent.shift();
   }
-  return { count, badLines, last };
+  return { count, badLines, last, recent: recent.reverse() };
 }
 
 async function readTicket(repo, harness, name, dir, errors) {
@@ -122,7 +125,7 @@ async function readTicket(repo, harness, name, dir, errors) {
     const t = await readText(`${dir}/attention.md`);
     if (t !== null) attention = parseAttention(t);
   }
-  let events = { count: 0, badLines: 0, last: null };
+  let events = { count: 0, badLines: 0, last: null, recent: [] };
   if (files.events) {
     const t = await readText(`${dir}/events.jsonl`);
     if (t !== null) events = parseEvents(t);

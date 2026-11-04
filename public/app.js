@@ -89,6 +89,14 @@ function ticketRow(t) {
   const open = t.attention.filter((a) => a.open).length;
   if (open) row(c, chip(open + ' open attention', 'attention'));
   if (t.events.last) c.appendChild(el('div', 'sub', `last event: ${t.events.last.type || ''} ${t.events.last.detail || ''} (${ago(t.events.last.ts)})`));
+  if (t.events.recent.length > 0) {
+    const d = el('details', 'timeline');
+    d.appendChild(el('summary', null, `events (${t.events.count})${t.events.badLines > 0 ? `, ${t.events.badLines} bad lines` : ''}`));
+    for (const e of t.events.recent) {
+      d.appendChild(el('div', 'sub', [e.ts, e.actor, e.type, e.detail].map((v) => v ?? '-').join('  ')));
+    }
+    c.appendChild(d);
+  }
   if (t.request) c.appendChild(el('div', 'sub', 'request ' + t.request));
   row(c, pathBtn(t.dir));
   return c;

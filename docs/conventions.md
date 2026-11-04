@@ -150,7 +150,7 @@ ISO 8601 strings or `null`; `repo` is the path relative to its root (for example
   (`front-matter`, `status-line`, `changelog`, `checkboxes`, `none`), `statusRaw`,
   `checkbox` (`done, open`), `files` (booleans: `plan, changelog, handoff, research, attention,
   events, discoveries`), `request`, `attention[]` (`id, what, status, asked, by, why, options[],
-  recommendation, default, answer, open`), `events` (`count, badLines, last`), `discoveries`
+  recommendation, default, answer, open`), `events` (`count, badLines, last, recent[]`; `recent` = last 10 valid events, newest first), `discoveries`
   (count), `lastActivity, stale, staleReason`
 - `factory[]`: `repo, file, jobs[]` (`id, title, branch, stage, round, decision, note, updated`)
 - `sessions[]`: `id, repo, cwd, title, branch, lastActivity, sizeBytes`
